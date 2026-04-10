@@ -346,9 +346,10 @@ map.on('click', function(e) {
     zoneParcelLayer = L.geoJSON({ type: 'FeatureCollection', features: features }, {
       pane: 'parcelHighlight',
       style: function(f) {
-        var ok = f.properties._pass;
-        var c = ok ? '#10b981' : '#ef4444';
-        return { color: c, fillColor: c, fillOpacity: ok ? 0.30 : 0.15, weight: ok ? 2 : 1 };
+        if (!f.properties._pass) return { fillOpacity: 0, opacity: 0, weight: 0 };
+        var rd = f.properties._roadAccess;
+        var c = (rd === 'primary') ? '#10b981' : '#f59e0b';
+        return { color: c, fillColor: c, fillOpacity: 0.30, weight: 2 };
       },
       onEachFeature: function(feature, layer) {
         layer.on('click', function(ev) {
@@ -648,28 +649,23 @@ function getZoneStyle(props) {
     eligible = true;
     eColor = 'green';
   } else if (medVisible && isConditional && paramPass) {
-    // Conditional: must have road. Primary = green (full clinic), Secondary = amber (15-bed)
-    if (roadAccess === 'primary') {
-      eligible = true;
-      eColor = 'green';
-    } else if (roadAccess === 'secondary') {
-      eligible = true;
-      eColor = 'amber';
-    }
-    // landlocked or unknown road = hidden
+    // Conditional zones: show as faint outline only — actual eligibility depends on individual parcel road access
+    eligible = true;
+    eColor = 'outline';
   }
 
   if (!eligible) {
     return { fillOpacity: 0, opacity: 0, weight: 0 };
   }
 
-  let fillColor, fillOpacity, weight, color;
+  let fillColor, fillOpacity, weight, color, dashArray;
   if (eColor === 'green') {
-    fillColor = '#10b981'; fillOpacity = 0.28 * zoneOpacityVal; color = '#10b981'; weight = 2;
+    fillColor = '#10b981'; fillOpacity = 0.28 * zoneOpacityVal; color = '#10b981'; weight = 2; dashArray = null;
   } else {
-    fillColor = '#f59e0b'; fillOpacity = 0.22 * zoneOpacityVal; color = '#f59e0b'; weight = 1.5;
+    // Conditional: dashed outline, no fill — click to load parcels and see green/red
+    fillColor = '#f59e0b'; fillOpacity = 0.04 * zoneOpacityVal; color = '#f59e0b'; weight = 1.5; dashArray = '6 4';
   }
-  return { fillColor, fillOpacity, color, weight, opacity: 0.9 * zoneOpacityVal };
+  return { fillColor, fillOpacity, color, weight, opacity: 0.7 * zoneOpacityVal, dashArray: dashArray };
 }
 
 function getCheckedValues(filterName) {
