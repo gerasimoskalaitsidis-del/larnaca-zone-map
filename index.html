@@ -281,10 +281,13 @@ map.getPane('parcelHighlight').style.zIndex = 650;
 const PARCEL_QUERY_URL = 'https://eservices.dls.moi.gov.cy/arcgis/rest/services/National/CadastralMap_EN/MapServer/0/query';
 let parcelHighlight = null;
 
-// All clicks handled here — find zone via point-in-polygon, optionally query parcel
+// All clicks handled here
+let zoneParcelLayer = null;
+
 map.on('click', function(e) {
   var latlng = e.latlng;
   var zoneProps = findZoneAt(latlng);
+  var zoneFeature = findZoneFeatureAt(latlng);
   var cadastralOn = document.getElementById('toggleCadastral').checked;
 
   if (!cadastralOn) {
@@ -294,26 +297,117 @@ map.on('click', function(e) {
     return;
   }
 
-  // Cadastral ON — query parcel + show zone
-  var popup = L.popup({ maxWidth: 380 }).setLatLng(latlng).setContent('<div style="padding:8px;color:#94a3b8">Querying parcel...</div>').openOn(map);
-  queryParcel(latlng).then(function(parcelData) {
-    // Check this specific parcel's road frontage
-    var parcelRoad = parcelData ? checkParcelRoadAccess(parcelData.geometry) : 'unknown';
-    popup.setContent(buildCombinedPopup(zoneProps, parcelData, latlng, parcelRoad));
-    if (parcelData && parcelData.geometry) {
-      var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
-      var area = parcelData.properties ? parseFloat(parcelData.properties['SHAPE.STArea()'] || 0) : 0;
+  // Cadastral ON — fetch ALL parcels in this zone, color them
+  if (zoneParcelLayer) map.removeLayer(zoneParcelLayer);
+  if (parcelHighlight) map.removeLayer(parcelHighlight);
+
+  var popup = L.popup({ maxWidth: 380 }).setLatLng(latlng)
+    .setContent('<div style="padding:8px;color:#94a3b8">Loading parcels in zone...</div>').openOn(map);
+
+  // Get zone bbox for spatial query
+  var bbox = zoneFeature ? getFeatureBbox(zoneFeature) : [latlng.lng-0.005,latlng.lat-0.005,latlng.lng+0.005,latlng.lat+0.005];
+
+  queryParcelsInBbox(bbox).then(function(parcels) {
+    var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
+    var medClass = zoneProps ? (zoneProps.medical_class || '') : '';
+    var isConditional = medClass.indexOf('conditional') === 0;
+
+    // Color each parcel
+    var features = [];
+    var okCount = 0, failCount = 0;
+    parcels.forEach(function(p) {
+      var area = p.properties['SHAPE.STArea()'] ? parseFloat(p.properties['SHAPE.STArea()']) : 0;
       var sizeOk = (minPlot === 0 || area >= minPlot);
-      var roadOk = (parcelRoad !== 'landlocked');
-      var medClass = zoneProps ? (zoneProps.medical_class || '') : '';
-      // For conditional zones, must have road access. For by_right, road not required.
-      var pass = sizeOk && (medClass === 'by_right' || roadOk);
-      highlightParcel(parcelData.geometry, pass);
-    }
-  }).catch(function() {
-    popup.setContent(buildCombinedPopup(zoneProps, null, latlng));
+      var roadAccess = checkParcelRoadAccess(p.geometry);
+      var roadOk = roadAccess !== 'landlocked';
+      var pass = sizeOk && (!isConditional || roadOk);
+
+      p.properties._pass = pass;
+      p.properties._roadAccess = roadAccess;
+      p.properties._area = area;
+      features.push(p);
+      if (pass) okCount++; else failCount++;
+    });
+
+    // Add colored parcel layer
+    zoneParcelLayer = L.geoJSON({ type: 'FeatureCollection', features: features }, {
+      pane: 'parcelHighlight',
+      style: function(f) {
+        var ok = f.properties._pass;
+        var c = ok ? '#10b981' : '#ef4444';
+        return { color: c, fillColor: c, fillOpacity: ok ? 0.30 : 0.20, weight: ok ? 2 : 1 };
+      },
+      onEachFeature: function(feature, layer) {
+        layer.on('click', function(ev) {
+          L.DomEvent.stopPropagation(ev);
+          var pp = feature.properties;
+          var pr = pp._roadAccess;
+          // Show individual parcel popup
+          var singlePopup = L.popup({ maxWidth: 380 }).setLatLng(ev.latlng)
+            .setContent(buildCombinedPopup(zoneProps, feature, ev.latlng, pr)).openOn(map);
+          if (parcelHighlight) map.removeLayer(parcelHighlight);
+          highlightParcel(feature.geometry, pp._pass);
+        });
+      }
+    }).addTo(map);
+
+    // Update main popup with summary
+    var zoneName = zoneProps ? (zoneProps.PLNZNT_NAME || '?') : '?';
+    var h = '<div style="min-width:260px">';
+    h += '<b style="font-size:14px">Zone: ' + zoneName + '</b> — ' + parcels.length + ' parcels loaded<br>';
+    h += '<span style="color:#10b981;font-weight:600">' + okCount + ' eligible</span>';
+    h += ' · <span style="color:#ef4444;font-weight:600">' + failCount + ' filtered out</span>';
+    if (minPlot > 0) h += '<br><span style="font-size:10px;color:#64748b">Min plot: ' + minPlot.toLocaleString() + ' m²</span>';
+    if (isConditional) h += '<br><span style="font-size:10px;color:#64748b">Road frontage required (§17.5.2/§17.5.4)</span>';
+    h += '<br><span style="font-size:10px;color:#475569">Click a parcel for details. Max 1,000 shown.</span>';
+    h += '</div>';
+    popup.setContent(h);
+  }).catch(function(err) {
+    popup.setContent('<div style="padding:8px;color:#fca5a5">Error loading parcels: ' + err.message + '</div>');
   });
 });
+
+function getFeatureBbox(feature) {
+  var coords = feature.geometry.coordinates;
+  var flat = [];
+  function flatten(c) { if (typeof c[0] === 'number') flat.push(c); else c.forEach(flatten); }
+  flatten(coords);
+  var minLon=999,maxLon=-999,minLat=999,maxLat=-999;
+  flat.forEach(function(p) { if(p[0]<minLon)minLon=p[0];if(p[0]>maxLon)maxLon=p[0];if(p[1]<minLat)minLat=p[1];if(p[1]>maxLat)maxLat=p[1]; });
+  return [minLon,minLat,maxLon,maxLat];
+}
+
+function queryParcelsInBbox(bbox) {
+  var envelope = bbox[0]+','+bbox[1]+','+bbox[2]+','+bbox[3];
+  var url = PARCEL_QUERY_URL +
+    '?where=1%3D1&geometry=' + encodeURIComponent(envelope) +
+    '&geometryType=esriGeometryEnvelope&inSR=4326' +
+    '&spatialRel=esriSpatialRelIntersects' +
+    '&outFields=PARCEL_NBR,DIST_CODE,VIL_CODE,QRTR_CODE,BLCK_CODE,SHEET,PLAN_NBR,SHAPE.STArea()' +
+    '&returnGeometry=true&outSR=4326&resultRecordCount=1000&f=geojson';
+  return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    return data.features || [];
+  });
+}
+
+// Find zone FEATURE (with geometry) for bbox
+function findZoneFeatureAt(latlng) {
+  var features = ZONE_DATA.features;
+  for (var i = 0; i < features.length; i++) {
+    var f = features[i];
+    if (!f.geometry || !f.geometry.coordinates) continue;
+    var coords = f.geometry.coordinates;
+    var type = f.geometry.type;
+    if (type === 'Polygon') {
+      if (pointInPolygon(latlng.lat, latlng.lng, coords)) return f;
+    } else if (type === 'MultiPolygon') {
+      for (var p = 0; p < coords.length; p++) {
+        if (pointInPolygon(latlng.lat, latlng.lng, coords[p])) return f;
+      }
+    }
+  }
+  return null;
+}
 
 function queryParcel(latlng) {
   var url = PARCEL_QUERY_URL +
