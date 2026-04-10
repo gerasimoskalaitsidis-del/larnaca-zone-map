@@ -595,15 +595,14 @@ function getZoneStyle(props) {
   let eColor = 'hidden'; // 'green', 'amber', 'hidden'
 
   if (medVisible && medClass === 'by_right' && paramPass) {
-    eligible = true;
+    // GREEN solid — by right, eligible
+    return { fillColor: '#10b981', fillOpacity: 0.28 * zoneOpacityVal, color: '#10b981', weight: 2, opacity: 0.9 * zoneOpacityVal };
   }
-  // Conditional zones: invisible at zone level. Click to load parcels.
-
-  if (!eligible) {
-    return { fillOpacity: 0, opacity: 0, weight: 0 };
+  if (medVisible && isConditional && paramPass) {
+    // Thin dashed outline only — click parcels to check road access
+    return { fillOpacity: 0, color: '#f59e0b', weight: 1, opacity: 0.5 * zoneOpacityVal, dashArray: '4 4' };
   }
-
-  return { fillColor: '#10b981', fillOpacity: 0.28 * zoneOpacityVal, color: '#10b981', weight: 2, opacity: 0.9 * zoneOpacityVal };
+  return { fillOpacity: 0, opacity: 0, weight: 0 };
 }
 
 function getCheckedValues(filterName) {
