@@ -298,82 +298,31 @@ map.on('click', function(e) {
     return;
   }
 
-  // Cadastral ON — load parcels in this zone silently, then show clicked parcel details
-  if (zoneParcelLayer) map.removeLayer(zoneParcelLayer);
+  // Cadastral ON — query single parcel at click point
   if (parcelHighlight) map.removeLayer(parcelHighlight);
 
-  var bbox = zoneFeature ? getFeatureBbox(zoneFeature) : [latlng.lng-0.005,latlng.lat-0.005,latlng.lng+0.005,latlng.lat+0.005];
+  var popup = L.popup({ maxWidth: 380 }).setLatLng(latlng)
+    .setContent('<div style="padding:6px;color:#94a3b8;font-size:12px">Querying parcel...</div>').openOn(map);
 
-  // Show loading indicator briefly
-  var loadingPopup = L.popup({ maxWidth: 280, closeButton: false }).setLatLng(latlng)
-    .setContent('<div style="padding:6px;color:#94a3b8;font-size:12px">Loading parcels...</div>').openOn(map);
-
-  queryParcelsInBbox(bbox).then(function(parcels) {
-    var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
-    var medClass = zoneProps ? (zoneProps.medical_class || '') : '';
-    var isConditional = medClass.indexOf('conditional') === 0;
-
-    // Classify each parcel
-    var features = [];
-    var clickedParcel = null;
-    var clickedDist = Infinity;
-    parcels.forEach(function(p) {
-      var area = p.properties['SHAPE.STArea()'] ? parseFloat(p.properties['SHAPE.STArea()']) : 0;
-      var sizeOk = (minPlot === 0 || area >= minPlot);
-      var roadAccess = checkParcelRoadAccess(p.geometry);
-      var roadOk = roadAccess !== 'landlocked';
-      var pass = sizeOk && (!isConditional || roadOk);
-      p.properties._pass = pass;
-      p.properties._roadAccess = roadAccess;
-      p.properties._area = area;
-      p.properties._zoneProps = zoneProps;
-      features.push(p);
-
-      // Find the parcel closest to click point
-      if (p.geometry && p.geometry.coordinates) {
-        var ring = p.geometry.type === 'MultiPolygon' ? p.geometry.coordinates[0][0] : p.geometry.coordinates[0];
-        if (ring) {
-          var cx=0,cy=0;
-          for (var i=0;i<ring.length;i++){cx+=ring[i][0];cy+=ring[i][1];}
-          cx/=ring.length; cy/=ring.length;
-          var d = Math.abs(cx-latlng.lng)+Math.abs(cy-latlng.lat);
-          if (d < clickedDist) { clickedDist = d; clickedParcel = p; }
-        }
-      }
-    });
-
-    // Add colored parcel layer
-    zoneParcelLayer = L.geoJSON({ type: 'FeatureCollection', features: features }, {
-      pane: 'parcelHighlight',
-      style: function(f) {
-        if (!f.properties._pass) return { fillOpacity: 0, opacity: 0, weight: 0 };
-        var rd = f.properties._roadAccess;
-        var c = (rd === 'primary') ? '#10b981' : '#f59e0b';
-        return { color: c, fillColor: c, fillOpacity: 0.30, weight: 2 };
-      },
-      onEachFeature: function(feature, layer) {
-        layer.on('click', function(ev) {
-          L.DomEvent.stopPropagation(ev);
-          var pp = feature.properties;
-          var zp = pp._zoneProps;
-          L.popup({ maxWidth: 380 }).setLatLng(ev.latlng)
-            .setContent(buildCombinedPopup(zp, feature, ev.latlng, pp._roadAccess)).openOn(map);
-          if (parcelHighlight) map.removeLayer(parcelHighlight);
-          highlightParcel(feature.geometry, pp._pass);
-        });
-      }
-    }).addTo(map);
-
-    // Show the clicked parcel's details immediately
-    map.closePopup(loadingPopup);
-    if (clickedParcel) {
-      var cp = clickedParcel.properties;
-      L.popup({ maxWidth: 380 }).setLatLng(latlng)
-        .setContent(buildCombinedPopup(zoneProps, clickedParcel, latlng, cp._roadAccess)).openOn(map);
-      highlightParcel(clickedParcel.geometry, cp._pass);
+  queryParcel(latlng).then(function(parcelData) {
+    if (!parcelData) {
+      popup.setContent(buildPopup(zoneProps, latlng));
+      return;
     }
-  }).catch(function(err) {
-    map.closePopup(loadingPopup);
+    var parcelRoad = checkParcelRoadAccess(parcelData.geometry);
+    popup.setContent(buildCombinedPopup(zoneProps, parcelData, latlng, parcelRoad));
+    if (parcelData.geometry) {
+      var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
+      var area = parcelData.properties ? parseFloat(parcelData.properties['SHAPE.STArea()'] || 0) : 0;
+      var sizeOk = (minPlot === 0 || area >= minPlot);
+      var medClass = zoneProps ? (zoneProps.medical_class || '') : '';
+      var isConditional = medClass.indexOf('conditional') === 0;
+      var roadOk = parcelRoad !== 'landlocked';
+      var pass = sizeOk && (!isConditional || roadOk);
+      highlightParcel(parcelData.geometry, pass);
+    }
+  }).catch(function() {
+    if (zoneProps) popup.setContent(buildPopup(zoneProps, latlng));
   });
 });
 
