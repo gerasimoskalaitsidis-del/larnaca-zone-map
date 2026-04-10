@@ -450,7 +450,7 @@ function checkParcelRoadAccess(parcelGeometry) {
     if (!roadInBbox) continue;
     // Check if any road point is within ~30m of parcel boundary
     for (var j=0; j<roadCoords.length; j++) {
-      if (pointNearPolygon(roadCoords[j][1], roadCoords[j][0], coords, 0.0003)) {
+      if (pointNearPolygon(roadCoords[j][1], roadCoords[j][0], coords, 0.0007)) {
         if (roadClass === 1) { bestClass = 1; break; }
         if (roadClass === 2 && bestClass < 2) bestClass = 2;
       }
