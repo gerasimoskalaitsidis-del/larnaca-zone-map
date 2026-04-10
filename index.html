@@ -599,8 +599,8 @@ function getZoneStyle(props) {
     return { fillColor: '#10b981', fillOpacity: 0.28 * zoneOpacityVal, color: '#10b981', weight: 2, opacity: 0.9 * zoneOpacityVal, dashArray: null };
   }
   if (medVisible && isConditional && paramPass) {
-    // Thin dashed amber outline — click parcels to check road access
-    return { fillColor: '#f59e0b', fillOpacity: 0.03 * zoneOpacityVal, color: '#f59e0b', weight: 1.5, opacity: 0.6 * zoneOpacityVal, dashArray: '6 4' };
+    // AMBER solid — conditional, needs parcel road check
+    return { fillColor: '#f59e0b', fillOpacity: 0.22 * zoneOpacityVal, color: '#f59e0b', weight: 2, opacity: 0.9 * zoneOpacityVal, dashArray: null };
   }
   // Hidden
   return { fillColor: '#000000', fillOpacity: 0, color: '#000000', weight: 0, opacity: 0, dashArray: null };
