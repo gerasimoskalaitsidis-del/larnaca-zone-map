@@ -659,18 +659,29 @@ function getZoneStyle(props) {
     fillOpacity = 0.10 * zoneOpacityVal;
     color = '#6b7280';
     weight = 0.5;
-  } else if (paramPass) {
-    // GREEN — medically eligible AND passes parameter filters
+  } else if (paramPass && medClass === 'by_right') {
+    // GREEN — permitted by right AND passes parameter filters
     fillColor = '#10b981';
     fillOpacity = 0.25 * zoneOpacityVal;
     color = '#10b981';
     weight = 1.5;
-  } else {
-    // AMBER — medically eligible but fails parameter filters
+  } else if (paramPass && isConditional) {
+    // AMBER — conditional zone, passes params but needs parcel-level road check
     fillColor = '#f59e0b';
-    fillOpacity = 0.12 * zoneOpacityVal;
+    fillOpacity = 0.18 * zoneOpacityVal;
     color = '#f59e0b';
-    weight = 1;
+    weight = 1.2;
+  } else if (!paramPass && (medClass === 'by_right' || isConditional)) {
+    // AMBER — eligible class but fails parameter filters
+    fillColor = '#f59e0b';
+    fillOpacity = 0.10 * zoneOpacityVal;
+    color = '#f59e0b';
+    weight = 0.8;
+  } else {
+    fillColor = '#6b7280';
+    fillOpacity = 0.08 * zoneOpacityVal;
+    color = '#6b7280';
+    weight = 0.5;
   }
 
   return { fillColor, fillOpacity, color, weight, opacity: 0.8 * zoneOpacityVal };
