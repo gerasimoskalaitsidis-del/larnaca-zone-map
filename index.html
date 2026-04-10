@@ -165,8 +165,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <label class="layer-toggle"><input type="checkbox" id="toggleWMS" checked> Official DLS WMS overlay</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleSatellite" checked> Satellite basemap</label>
   <div class="slider-row">
-    <label>Zone polygon opacity <b id="opVal">100%</b></label>
+    <label>Zone overlay opacity <b id="opVal">100%</b></label>
     <input type="range" id="zoneOpacity" min="0" max="100" value="100">
+  </div>
+  <div class="slider-row">
+    <label>Parcel/plot overlay opacity <b id="parcelOpVal">50%</b></label>
+    <input type="range" id="parcelOpacity" min="0" max="100" value="50">
   </div>
 
   <div class="divider"></div>
@@ -244,7 +248,7 @@ const wmsZones = L.tileLayer.wms('https://eservices.dls.moi.gov.cy/inspire/servi
   layers: '0', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.4, crs: L.CRS.EPSG4326
 });
 const wmsCadastral = L.tileLayer.wms('https://eservices.dls.moi.gov.cy/inspire/services/INSPIRE/CP_CadastralParcels/MapServer/WMSServer', {
-  layers: '1', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.5, crs: L.CRS.EPSG4326
+  layers: '1', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.50, crs: L.CRS.EPSG4326
 });
 
 // ===== ZONE COLORS =====
@@ -628,6 +632,12 @@ document.getElementById('minBD').addEventListener('input', function() { document
 document.getElementById('minCov').addEventListener('input', function() { document.getElementById('covVal').textContent = parseFloat(this.value).toFixed(2); refreshZones(); });
 document.getElementById('minFloors').addEventListener('input', function() { document.getElementById('flVal').textContent = this.value === '0' ? 'any' : ('\u2265' + this.value); refreshZones(); });
 document.getElementById('zoneOpacity').addEventListener('input', function() { zoneOpacityVal = this.value / 100; document.getElementById('opVal').textContent = this.value + '%'; refreshZones(); });
+document.getElementById('parcelOpacity').addEventListener('input', function() {
+  var v = this.value / 100;
+  document.getElementById('parcelOpVal').textContent = this.value + '%';
+  wmsCadastral.setOpacity(v);
+  if (parcelHighlight) parcelHighlight.setStyle({ fillOpacity: v * 0.7, opacity: v });
+});
 
 // ===== LAYER TOGGLES =====
 document.getElementById('toggleRadius').addEventListener('change', function() { this.checked ? radiusGroup.addTo(map) : map.removeLayer(radiusGroup); });
