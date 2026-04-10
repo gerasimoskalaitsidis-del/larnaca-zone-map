@@ -160,7 +160,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <div class="divider"></div>
 
   <h3>Layers</h3>
-  <label class="layer-toggle"><input type="checkbox" id="toggleRadius" checked> 10 km / 5 km radius</label>
+  <label class="layer-toggle"><input type="checkbox" id="toggleRadius" checked> Distance rings (1 / 3 / 5 / 10 km)</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleCandidates" checked> Candidate search areas</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleWMS" checked> Official DLS WMS overlay</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleSatellite" checked> Satellite basemap</label>
@@ -588,8 +588,12 @@ function buildPopup(props, latlng) {
 
 // ===== RADIUS CIRCLES =====
 const radiusGroup = L.layerGroup();
-L.circle(airport, { radius: 10000, color: '#8b5cf6', fillColor: '#8b5cf6', fillOpacity: 0.03, weight: 2, dashArray: '12 6', interactive: false }).addTo(radiusGroup);
-L.circle(airport, { radius: 5000, color: '#a78bfa', fillOpacity: 0, weight: 1.5, dashArray: '5 5', interactive: false }).addTo(radiusGroup);
+[[10000,'#8b5cf6',2,'12 6'],[5000,'#a78bfa',1.5,'8 5'],[3000,'#c4b5fd',1.2,'6 4'],[1000,'#ddd6fe',1,'4 3']].forEach(function(r){
+  L.circle(airport, { radius: r[0], color: r[1], fillOpacity: 0, weight: r[2], dashArray: r[3], interactive: false }).addTo(radiusGroup);
+  L.marker(L.latLng(airport[0], airport[1]).toBounds(r[0]*2).getNorthEast(), {
+    icon: L.divIcon({ html:'<span style="font-size:10px;color:'+r[1]+';font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.6)">'+(r[0]/1000)+'km</span>', className:'', iconAnchor:[-4,6] })
+  }).addTo(radiusGroup);
+});
 radiusGroup.addTo(map);
 
 // ===== AIRPORT MARKER =====
