@@ -139,11 +139,30 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
 
   <div class="divider"></div>
 
+  <h3>Plot / Parcel <span style="font-size:9px;color:#475569;text-transform:none">(DLS CadastralMap)</span></h3>
+  <label class="layer-toggle"><input type="checkbox" id="toggleCadastral"> Show cadastral parcels &amp; click for details</label>
+  <div class="slider-row">
+    <label>Min plot size <b id="plotVal">any</b></label>
+    <input type="range" id="minPlot" min="0" max="25000" step="250" value="0">
+  </div>
+  <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">
+    <span class="preset-btn" onclick="setPlotMin(0,this)" style="font-size:10px;padding:3px 8px">Any</span>
+    <span class="preset-btn" onclick="setPlotMin(500,this)" style="font-size:10px;padding:3px 8px">500+</span>
+    <span class="preset-btn" onclick="setPlotMin(1000,this)" style="font-size:10px;padding:3px 8px">1,000+</span>
+    <span class="preset-btn" onclick="setPlotMin(2500,this)" style="font-size:10px;padding:3px 8px">2,500+</span>
+    <span class="preset-btn" onclick="setPlotMin(5000,this)" style="font-size:10px;padding:3px 8px">5,000+</span>
+    <span class="preset-btn" onclick="setPlotMin(10000,this)" style="font-size:10px;padding:3px 8px">10,000+</span>
+  </div>
+  <div style="font-size:10px;color:#475569;line-height:1.4;margin-top:4px">
+    Note: plot size filter works when you click individual parcels. Zones are colored by zone-level parameters only.
+  </div>
+
+  <div class="divider"></div>
+
   <h3>Layers</h3>
   <label class="layer-toggle"><input type="checkbox" id="toggleRadius" checked> 10 km / 5 km radius</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleCandidates" checked> Candidate search areas</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleWMS"> Official DLS WMS overlay</label>
-  <label class="layer-toggle"><input type="checkbox" id="toggleCadastral"> Cadastral parcels — click for plot details</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleSatellite"> Satellite basemap</label>
   <div class="slider-row">
     <label>Zone polygon opacity <b id="opVal">70%</b></label>
@@ -267,7 +286,11 @@ map.on('click', function(e) {
   var popup = L.popup({ maxWidth: 380 }).setLatLng(latlng).setContent('<div style="padding:8px;color:#94a3b8">Querying parcel...</div>').openOn(map);
   queryParcel(latlng).then(function(parcelData) {
     popup.setContent(buildCombinedPopup(zoneProps, parcelData, latlng));
-    if (parcelData && parcelData.geometry) highlightParcel(parcelData.geometry);
+    if (parcelData && parcelData.geometry) {
+      var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
+      var area = parcelData.properties ? parseFloat(parcelData.properties['SHAPE.STArea()'] || 0) : 0;
+      highlightParcel(parcelData.geometry, minPlot === 0 || area >= minPlot);
+    }
   }).catch(function() {
     popup.setContent(buildCombinedPopup(zoneProps, null, latlng));
   });
@@ -287,12 +310,12 @@ function queryParcel(latlng) {
   });
 }
 
-function highlightParcel(geometry) {
+function highlightParcel(geometry, pass) {
   if (parcelHighlight) map.removeLayer(parcelHighlight);
+  var c = pass ? '#10b981' : '#ef4444';
   parcelHighlight = L.geoJSON(geometry, {
-    style: { color: '#f97316', fillColor: '#f97316', fillOpacity: 0.15, weight: 3, dashArray: null }
+    style: { color: c, fillColor: c, fillOpacity: 0.20, weight: 3 }
   }).addTo(map);
-  // Auto-remove after 30s
   setTimeout(function() { if (parcelHighlight) map.removeLayer(parcelHighlight); }, 30000);
 }
 
@@ -343,16 +366,26 @@ function buildCombinedPopup(zoneProps, parcelData, latlng) {
     var areaM2 = pp['SHAPE.STArea()'];
     var vilCode = pp.VIL_CODE || '?';
 
+    var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
+    var area = areaM2 ? parseFloat(areaM2) : 0;
+    var plotPass = (minPlot === 0 || area >= minPlot);
+    var plotColor = plotPass ? '#10b981' : '#ef4444';
+    var plotLabel = plotPass ? (minPlot === 0 ? 'Plot' : 'Size OK') : 'Too small';
+
     h += '<div style="min-width:290px">';
     h += '<div style="display:flex;justify-content:space-between;align-items:center">';
-    h += '<b style="font-size:15px;color:#f97316">Parcel ' + parcelNbr + '</b>';
-    h += '<span style="background:#f97316;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">Plot</span>';
+    h += '<b style="font-size:15px;color:' + plotColor + '">Parcel ' + parcelNbr + '</b>';
+    h += '<span style="background:' + plotColor + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">' + plotLabel + '</span>';
     h += '</div>';
     h += '<table class="popup-table">';
     h += '<tr><td class="k">Sheet / Plan:</td><td class="v">' + sheet + ' / ' + plan + '</td></tr>';
     h += '<tr><td class="k">Block:</td><td class="v">' + block + '</td></tr>';
     h += '<tr><td class="k">Municipality code:</td><td class="v">' + vilCode + '</td></tr>';
-    if (areaM2) h += '<tr><td class="k">Plot area:</td><td class="v"><b>' + Math.round(parseFloat(areaM2)).toLocaleString() + ' m&sup2;</b></td></tr>';
+    if (areaM2) {
+      var areaStr = Math.round(area).toLocaleString() + ' m&sup2;';
+      if (!plotPass) areaStr += ' <span style="color:#ef4444;font-size:10px">(min ' + minPlot.toLocaleString() + ' m&sup2;)</span>';
+      h += '<tr><td class="k">Plot area:</td><td class="v"><b>' + areaStr + '</b></td></tr>';
+    }
     h += '</table>';
 
     // Parking estimate for medical if area known
@@ -628,6 +661,17 @@ function applyPreset(name, btnEl) {
 
 // Initial stats
 updateStats();
+
+// ===== PLOT SIZE FILTER =====
+document.getElementById('minPlot').addEventListener('input', function() {
+  var v = parseInt(this.value);
+  document.getElementById('plotVal').textContent = v === 0 ? 'any' : (v >= 1000 ? (v/1000).toFixed(v%1000===0?0:1) + 'k' : v) + ' m\u00B2';
+});
+
+function setPlotMin(val, btnEl) {
+  document.getElementById('minPlot').value = val;
+  document.getElementById('plotVal').textContent = val === 0 ? 'any' : (val >= 1000 ? (val/1000) + 'k' : val) + ' m\u00B2';
+}
 
 // ===== MOBILE PANEL TOGGLE =====
 function togglePanel() {
