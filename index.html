@@ -101,8 +101,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <h3>Medical Eligibility <span style="font-size:9px;color:#475569;text-transform:none">(LP Ch.17, p.199-205)</span></h3>
   <div class="filter-group">
     <label class="filter-row"><input type="checkbox" data-filter="med" value="by_right" checked><span class="swatch" style="background:#10b981"></span> Permitted by right<span class="ref">§17.5.1 p.202</span></label>
-    <label class="filter-row"><input type="checkbox" data-filter="med" value="conditional_15bed" checked><span class="swatch" style="background:#f59e0b"></span> Conditional — 15 bed clinic<span class="ref">§17.5.4 p.204</span></label>
-    <label class="filter-row"><input type="checkbox" data-filter="med" value="conditional_road" checked><span class="swatch" style="background:#eab308"></span> Conditional — along roads<span class="ref">§17.5.2 p.203</span></label>
+    <label class="filter-row"><input type="checkbox" data-filter="med" value="conditional_15bed"><span class="swatch" style="background:#f59e0b"></span> Conditional — 15 bed clinic<span class="ref">§17.5.4 p.204</span></label>
+    <label class="filter-row"><input type="checkbox" data-filter="med" value="conditional_road"><span class="swatch" style="background:#eab308"></span> Conditional — along roads<span class="ref">§17.5.2 p.203</span></label>
     <label class="filter-row"><input type="checkbox" data-filter="med" value="not_permitted"><span class="swatch" style="background:#ef4444"></span> Not applicable (show faded)<span class="ref">-</span></label>
     <label class="filter-row"><input type="checkbox" data-filter="med" value="unknown"><span class="swatch" style="background:#6b7280"></span> Unclassified / verify<span class="ref">-</span></label>
   </div>
@@ -125,25 +125,25 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
 
   <h3>Building Parameters <span style="font-size:9px;color:#475569;text-transform:none">(LP §10.2, p.91-94)</span></h3>
   <div class="slider-row">
-    <label>Min building density (BD) <b id="bdVal">0.00</b></label>
-    <input type="range" id="minBD" min="0" max="3.5" step="0.1" value="0">
+    <label>Min building density (BD) <b id="bdVal">0.60</b></label>
+    <input type="range" id="minBD" min="0" max="3.5" step="0.1" value="0.6">
   </div>
   <div class="slider-row">
-    <label>Min coverage <b id="covVal">0.00</b></label>
-    <input type="range" id="minCov" min="0" max="0.7" step="0.05" value="0">
+    <label>Min coverage <b id="covVal">0.35</b></label>
+    <input type="range" id="minCov" min="0" max="0.7" step="0.05" value="0.35">
   </div>
   <div class="slider-row">
-    <label>Min floors <b id="flVal">any</b></label>
-    <input type="range" id="minFloors" min="0" max="7" step="1" value="0">
+    <label>Min floors <b id="flVal">&ge;2</b></label>
+    <input type="range" id="minFloors" min="0" max="7" step="1" value="2">
   </div>
 
   <div class="divider"></div>
 
   <h3>Plot / Parcel <span style="font-size:9px;color:#475569;text-transform:none">(DLS CadastralMap)</span></h3>
-  <label class="layer-toggle"><input type="checkbox" id="toggleCadastral"> Show cadastral parcels &amp; click for details</label>
+  <label class="layer-toggle"><input type="checkbox" id="toggleCadastral" checked> Show cadastral parcels &amp; click for details</label>
   <div class="slider-row">
-    <label>Min plot size <b id="plotVal">any</b></label>
-    <input type="range" id="minPlot" min="0" max="25000" step="250" value="0">
+    <label>Min plot size <b id="plotVal">500 m&sup2;</b></label>
+    <input type="range" id="minPlot" min="0" max="25000" step="250" value="500">
   </div>
   <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">
     <span class="preset-btn" onclick="setPlotMin(0,this)" style="font-size:10px;padding:3px 8px">Any</span>
@@ -162,11 +162,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <h3>Layers</h3>
   <label class="layer-toggle"><input type="checkbox" id="toggleRadius" checked> 10 km / 5 km radius</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleCandidates" checked> Candidate search areas</label>
-  <label class="layer-toggle"><input type="checkbox" id="toggleWMS"> Official DLS WMS overlay</label>
-  <label class="layer-toggle"><input type="checkbox" id="toggleSatellite"> Satellite basemap</label>
+  <label class="layer-toggle"><input type="checkbox" id="toggleWMS" checked> Official DLS WMS overlay</label>
+  <label class="layer-toggle"><input type="checkbox" id="toggleSatellite" checked> Satellite basemap</label>
   <div class="slider-row">
-    <label>Zone polygon opacity <b id="opVal">70%</b></label>
-    <input type="range" id="zoneOpacity" min="0" max="100" value="70">
+    <label>Zone polygon opacity <b id="opVal">100%</b></label>
+    <input type="range" id="zoneOpacity" min="0" max="100" value="100">
   </div>
 
   <div class="divider"></div>
@@ -174,27 +174,27 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <h3>Candidate Zones</h3>
   <div class="zone-item" style="border-color:#10b981" onclick="flyTo([34.917,33.615])">
     <div class="name">A3. Livadia East <span class="tag tag-green">TOP</span></div>
-    <div class="detail">Axis II/IV · Medical by right · &euro;200-500/m&sup2;</div>
+    <div class="detail">Axis II/IV · Medical by right (§17.5.1)</div>
   </div>
   <div class="zone-item" style="border-color:#10b981" onclick="flyTo([34.910,33.578])">
     <div class="name">A2. Drosia / Kamares</div>
-    <div class="detail">Peripheral Commercial · Medical by right · &euro;350-700/m&sup2;</div>
+    <div class="detail">Peripheral Commercial · Medical by right (§17.5.1)</div>
   </div>
   <div class="zone-item" style="border-color:#f59e0b" onclick="flyTo([34.862,33.608])">
     <div class="name">B1. Dromolaxia-Meneou <span class="tag tag-amber">PRECEDENT</span></div>
-    <div class="detail">Eb Axis III · Specialty clinic 15 beds · &euro;150-400/m&sup2;</div>
+    <div class="detail">Eb Axis III · Specialty clinic 15 beds (§17.5.4)</div>
   </div>
   <div class="zone-item" style="border-color:#f59e0b" onclick="flyTo([34.907,33.545])">
     <div class="name">B2. Aradippou Corridor</div>
-    <div class="detail">Eb Axis III/IV · Conditional · &euro;250-550/m&sup2;</div>
+    <div class="detail">Eb Axis III/IV · Conditional (§17.5.4)</div>
   </div>
   <div class="zone-item" style="border-color:#f59e0b" onclick="flyTo([34.850,33.590])">
     <div class="name">B3. Kiti North</div>
-    <div class="detail">Mixed zones · Verify EOAL · &euro;150-350/m&sup2;</div>
+    <div class="detail">Mixed zones · Verify with EOAL</div>
   </div>
   <div class="zone-item" style="border-color:#3b82f6" onclick="flyTo([34.852,33.537])">
     <div class="name">C1. Tersefanou</div>
-    <div class="detail">Agricultural · Rezoning needed · &euro;80-250/m&sup2;</div>
+    <div class="detail">Agricultural · Rezoning needed (12-24+ months)</div>
   </div>
 
   <div class="divider"></div>
@@ -259,7 +259,7 @@ const MED_COLORS = {
 };
 
 // ===== GEOJSON ZONE LAYER =====
-let zoneOpacityVal = 0.70;
+let zoneOpacityVal = 1.00;
 const zoneLayer = L.geoJSON(ZONE_DATA, {
   style: function(feature) { return getZoneStyle(feature.properties); },
   interactive: false  // clicks handled at map level
@@ -433,6 +433,11 @@ function getZoneStyle(props) {
   const minBD = parseFloat(document.getElementById('minBD').value) || 0;
   const minCov = parseFloat(document.getElementById('minCov').value) || 0;
   const minFl = parseInt(document.getElementById('minFloors').value) || 0;
+  const minPlot = parseInt(document.getElementById('minPlot').value) || 0;
+
+  // Zone area check — if the zone polygon itself is smaller than min plot, it can't fit
+  const zoneArea = props['SHAPE.STArea()'] ? parseFloat(props['SHAPE.STArea()']) : 999999;
+  const plotPass = (minPlot === 0 || zoneArea >= minPlot);
 
   // Type filter — hide if unchecked
   if (!typeChecked.includes(filterType)) {
@@ -441,7 +446,7 @@ function getZoneStyle(props) {
 
   // Medical filter
   const medVisible = medChecked.includes(medClass);
-  const paramPass = bd >= minBD && cov >= minCov && fl >= minFl;
+  const paramPass = bd >= minBD && cov >= minCov && fl >= minFl && plotPass;
 
   let fillColor, fillOpacity, weight, color;
 
@@ -588,16 +593,16 @@ L.marker(airport, { icon: L.divIcon({ html: '<div style="background:#7c3aed;colo
 // ===== CANDIDATE ZONES =====
 const candidatesGroup = L.layerGroup();
 const candidates = [
-  {id:'A3',name:'Livadia East',bounds:[[34.905,33.590],[34.930,33.640]],color:'#10b981',info:'Activity Axis II/IV | Medical by right (§17.5.1, LP p.202)<br>Coeff: 0.80-1.00:1 | &euro;200-500/m&sup2;<br><b>TOP CANDIDATE</b>'},
-  {id:'A2',name:'Drosia / Kamares',bounds:[[34.900,33.560],[34.920,33.595]],color:'#10b981',info:'Peripheral Commercial / Axis II | Medical by right (§17.5.1, LP p.202)<br>Coeff: 1.00-1.20:1 | &euro;350-700/m&sup2;'},
-  {id:'A1',name:'Larnaca Center',bounds:[[34.910,33.620],[34.930,33.650]],color:'#10b981',info:'Central Commercial | Medical by right (§17.5.1, LP p.202)<br>Coeff: 1.40-2.40:1 | &euro;500-1200/m&sup2; (above budget)'},
-  {id:'B1',name:'Dromolaxia-Meneou',bounds:[[34.847,33.588],[34.875,33.625]],color:'#f59e0b',info:'Ka6/Eb Axis III | Specialty clinic conditional (§17.5.4, LP p.204)<br>Max 15 beds | Coeff: 0.50-0.90:1 | &euro;150-400/m&sup2;<br><b>EOAL precedent parcel 254</b>'},
-  {id:'B2',name:'Aradippou Corridor',bounds:[[34.895,33.525],[34.920,33.565]],color:'#f59e0b',info:'Eb Axis III/IV | Verify exact zone (§17.5.1/§17.5.4)<br>Coeff: 0.50-0.80:1 | &euro;250-550/m&sup2;'},
-  {id:'B3',name:'Kiti North',bounds:[[34.835,33.572],[34.858,33.608]],color:'#f59e0b',info:'Mixed zones | Verify with EOAL<br>&euro;150-350/m&sup2;'},
-  {id:'C1',name:'Tersefanou',bounds:[[34.838,33.515],[34.862,33.555]],color:'#3b82f6',info:'Agricultural | Rezoning 12-24+ months<br>&euro;80-250/m&sup2;'},
+  {id:'A3',name:'Livadia East',bounds:[[34.905,33.590],[34.930,33.640]],color:'#10b981'},
+  {id:'A2',name:'Drosia / Kamares',bounds:[[34.900,33.560],[34.920,33.595]],color:'#10b981'},
+  {id:'A1',name:'Larnaca Center',bounds:[[34.910,33.620],[34.930,33.650]],color:'#10b981'},
+  {id:'B1',name:'Dromolaxia-Meneou',bounds:[[34.847,33.588],[34.875,33.625]],color:'#f59e0b'},
+  {id:'B2',name:'Aradippou Corridor',bounds:[[34.895,33.525],[34.920,33.565]],color:'#f59e0b'},
+  {id:'B3',name:'Kiti North',bounds:[[34.835,33.572],[34.858,33.608]],color:'#f59e0b'},
+  {id:'C1',name:'Tersefanou',bounds:[[34.838,33.515],[34.862,33.555]],color:'#3b82f6'},
 ];
 candidates.forEach(function(z) {
-  L.rectangle(z.bounds, { color: z.color, fillColor: z.color, fillOpacity: 0.08, weight: 2, dashArray: z.id[0]==='A'?null:'6 4', interactive: false }).addTo(candidatesGroup);
+  // Labels only — no rectangles
   var c=[(z.bounds[0][0]+z.bounds[1][0])/2,(z.bounds[0][1]+z.bounds[1][1])/2];
   L.marker(c,{icon:L.divIcon({html:'<div style="background:'+z.color+';color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.3)">'+z.id+'</div>',className:'',iconAnchor:[14,10]})}).addTo(candidatesGroup);
 });
@@ -621,6 +626,11 @@ document.getElementById('toggleCandidates').addEventListener('change', function(
 document.getElementById('toggleWMS').addEventListener('change', function() { this.checked ? wmsZones.addTo(map) : map.removeLayer(wmsZones); });
 document.getElementById('toggleCadastral').addEventListener('change', function() { this.checked ? wmsCadastral.addTo(map) : map.removeLayer(wmsCadastral); });
 document.getElementById('toggleSatellite').addEventListener('change', function() { this.checked ? (satellite.addTo(map), osmLight.remove()) : (osmLight.addTo(map), satellite.remove()); });
+
+// Apply default layer state
+wmsZones.addTo(map);
+wmsCadastral.addTo(map);
+satellite.addTo(map); osmLight.remove();
 
 // ===== PRESETS =====
 function applyPreset(name, btnEl) {
@@ -666,6 +676,7 @@ updateStats();
 document.getElementById('minPlot').addEventListener('input', function() {
   var v = parseInt(this.value);
   document.getElementById('plotVal').textContent = v === 0 ? 'any' : (v >= 1000 ? (v/1000).toFixed(v%1000===0?0:1) + 'k' : v) + ' m\u00B2';
+  refreshZones();
 });
 
 function setPlotMin(val, btnEl) {
