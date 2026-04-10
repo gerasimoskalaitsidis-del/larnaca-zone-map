@@ -80,10 +80,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <div class="subtitle">Medical facility site analysis | 489 zones from DLS CadastralMap | Larnaca Local Plan 2011</div>
 
   <div id="stats" class="stats-row">
-    <div class="stat"><div class="num" id="statVisible">-</div><div class="lbl">Visible</div></div>
-    <div class="stat"><div class="num" id="statGreen">-</div><div class="lbl">Viable</div></div>
-    <div class="stat"><div class="num" id="statAmber">-</div><div class="lbl">Conditional</div></div>
-    <div class="stat"><div class="num" id="statRed">-</div><div class="lbl">Non-appl.</div></div>
+    <div class="stat"><div class="num" id="statVisible">-</div><div class="lbl">Shown</div></div>
+    <div class="stat"><div class="num" id="statGreen">-</div><div class="lbl">By right</div></div>
+    <div class="stat"><div class="num" id="statAmber">-</div><div class="lbl">15-bed</div></div>
+    <div class="stat"><div class="num" id="statRed">-</div><div class="lbl">Hidden</div></div>
   </div>
 
   <div class="divider"></div>
@@ -628,63 +628,39 @@ function getZoneStyle(props) {
   const medVisible = medChecked.includes(medClass);
   const paramPass = bd >= minBD && cov >= minCov && fl >= minFl && plotPass;
 
-  let fillColor, fillOpacity, weight, color;
+  const roadAccess = props.road_access || 'unknown';
+  const isConditional = (medClass === 'conditional_road' || medClass === 'conditional_15bed');
 
-  if (!medVisible) {
-    // Not in any checked medical category — hide
+  // Determine eligibility: green, amber, or hidden
+  let eligible = false;
+  let eColor = 'hidden'; // 'green', 'amber', 'hidden'
+
+  if (medVisible && medClass === 'by_right' && paramPass) {
+    eligible = true;
+    eColor = 'green';
+  } else if (medVisible && isConditional && paramPass) {
+    // Conditional: must have road. Primary = green (full clinic), Secondary = amber (15-bed)
+    if (roadAccess === 'primary') {
+      eligible = true;
+      eColor = 'green';
+    } else if (roadAccess === 'secondary') {
+      eligible = true;
+      eColor = 'amber';
+    }
+    // landlocked or unknown road = hidden
+  }
+
+  if (!eligible) {
     return { fillOpacity: 0, opacity: 0, weight: 0 };
   }
 
-  // Road access check — conditional zones require road frontage per §17.5.2/§17.5.4
-  const roadAccess = props.road_access || 'unknown';
-  const isConditional = (medClass === 'conditional_road' || medClass === 'conditional_15bed');
-  const landlocked = isConditional && roadAccess === 'landlocked';
-
-  // Zone is in a checked medical category — color by eligibility
-  if (landlocked) {
-    // RED — conditional zone but landlocked (no road frontage per OSM)
-    fillColor = '#ef4444';
-    fillOpacity = 0.12 * zoneOpacityVal;
-    color = '#ef4444';
-    weight = 1;
-  } else if (medClass === 'not_permitted') {
-    // RED — non-applicable
-    fillColor = '#ef4444';
-    fillOpacity = 0.10 * zoneOpacityVal;
-    color = '#ef4444';
-    weight = 0.5;
-  } else if (medClass === 'unknown') {
-    // GREY — unclassified
-    fillColor = '#6b7280';
-    fillOpacity = 0.10 * zoneOpacityVal;
-    color = '#6b7280';
-    weight = 0.5;
-  } else if (paramPass && medClass === 'by_right') {
-    // GREEN — permitted by right AND passes parameter filters
-    fillColor = '#10b981';
-    fillOpacity = 0.25 * zoneOpacityVal;
-    color = '#10b981';
-    weight = 1.5;
-  } else if (paramPass && isConditional) {
-    // AMBER — conditional zone, passes params but needs parcel-level road check
-    fillColor = '#f59e0b';
-    fillOpacity = 0.18 * zoneOpacityVal;
-    color = '#f59e0b';
-    weight = 1.2;
-  } else if (!paramPass && (medClass === 'by_right' || isConditional)) {
-    // AMBER — eligible class but fails parameter filters
-    fillColor = '#f59e0b';
-    fillOpacity = 0.10 * zoneOpacityVal;
-    color = '#f59e0b';
-    weight = 0.8;
+  let fillColor, fillOpacity, weight, color;
+  if (eColor === 'green') {
+    fillColor = '#10b981'; fillOpacity = 0.28 * zoneOpacityVal; color = '#10b981'; weight = 2;
   } else {
-    fillColor = '#6b7280';
-    fillOpacity = 0.08 * zoneOpacityVal;
-    color = '#6b7280';
-    weight = 0.5;
+    fillColor = '#f59e0b'; fillOpacity = 0.22 * zoneOpacityVal; color = '#f59e0b'; weight = 1.5;
   }
-
-  return { fillColor, fillOpacity, color, weight, opacity: 0.8 * zoneOpacityVal };
+  return { fillColor, fillOpacity, color, weight, opacity: 0.9 * zoneOpacityVal };
 }
 
 function getCheckedValues(filterName) {
@@ -699,7 +675,7 @@ function refreshZones() {
 }
 
 function updateStats() {
-  let visible = 0, green = 0, amber = 0, red = 0;
+  let visible = 0, green = 0, amber = 0;
   zoneLayer.eachLayer(function(layer) {
     if (!layer.feature) return;
     var style = getZoneStyle(layer.feature.properties);
@@ -707,13 +683,12 @@ function updateStats() {
       visible++;
       if (style.fillColor === '#10b981') green++;
       else if (style.fillColor === '#f59e0b') amber++;
-      else if (style.fillColor === '#ef4444' || style.fillColor === '#6b7280') red++;
     }
   });
   document.getElementById('statVisible').textContent = visible;
   document.getElementById('statGreen').textContent = green;
   document.getElementById('statAmber').textContent = amber;
-  document.getElementById('statRed').textContent = red;
+  document.getElementById('statRed').textContent = (489 - visible);
 }
 
 // ===== POPUP BUILDER =====
