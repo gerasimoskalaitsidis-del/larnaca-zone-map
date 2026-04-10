@@ -120,7 +120,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
   <label class="layer-toggle"><input type="checkbox" id="toggleRadius" checked> 10 km / 5 km radius</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleCandidates" checked> Candidate search areas</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleWMS"> Official DLS WMS overlay</label>
-  <label class="layer-toggle"><input type="checkbox" id="toggleCadastral"> Cadastral parcels (DLS)</label>
+  <label class="layer-toggle"><input type="checkbox" id="toggleCadastral"> Cadastral parcels — click for plot details</label>
   <label class="layer-toggle"><input type="checkbox" id="toggleSatellite"> Satellite basemap</label>
   <div class="slider-row">
     <label>Zone polygon opacity <b id="opVal">70%</b></label>
@@ -225,11 +225,132 @@ const zoneLayer = L.geoJSON(ZONE_DATA, {
   onEachFeature: function(feature, layer) {
     layer.on('click', function(e) {
       L.DomEvent.stopPropagation(e);
-      const popup = L.popup({ maxWidth: 360 }).setLatLng(e.latlng).setContent(buildPopup(feature.properties, e.latlng));
-      popup.openOn(map);
+      handleMapClick(e.latlng, feature.properties);
     });
   }
 }).addTo(map);
+
+// ===== PARCEL QUERY (DLS CadastralMap Layer 0) =====
+const PARCEL_QUERY_URL = 'https://eservices.dls.moi.gov.cy/arcgis/rest/services/National/CadastralMap_EN/MapServer/0/query';
+let parcelHighlight = null;
+
+function handleMapClick(latlng, zoneProps) {
+  const cadastralOn = document.getElementById('toggleCadastral').checked;
+  if (!cadastralOn) {
+    // Just show zone popup
+    L.popup({ maxWidth: 360 }).setLatLng(latlng).setContent(buildPopup(zoneProps, latlng)).openOn(map);
+    return;
+  }
+  // Show loading popup, then query parcel
+  const popup = L.popup({ maxWidth: 380 }).setLatLng(latlng).setContent('<div style="padding:8px;color:#94a3b8">Querying parcel...</div>').openOn(map);
+  queryParcel(latlng).then(function(parcelData) {
+    popup.setContent(buildCombinedPopup(zoneProps, parcelData, latlng));
+    if (parcelData && parcelData.geometry) highlightParcel(parcelData.geometry);
+  }).catch(function() {
+    popup.setContent(buildCombinedPopup(zoneProps, null, latlng));
+  });
+}
+
+function queryParcel(latlng) {
+  var url = PARCEL_QUERY_URL +
+    '?where=1%3D1' +
+    '&geometry=' + latlng.lng + ',' + latlng.lat +
+    '&geometryType=esriGeometryPoint&inSR=4326' +
+    '&spatialRel=esriSpatialRelIntersects' +
+    '&outFields=PARCEL_NBR,DIST_CODE,VIL_CODE,QRTR_CODE,BLCK_CODE,SHEET,PLAN_NBR,SHAPE.STArea()' +
+    '&returnGeometry=true&outSR=4326&f=geojson';
+  return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.features && data.features.length > 0) return data.features[0];
+    return null;
+  });
+}
+
+function highlightParcel(geometry) {
+  if (parcelHighlight) map.removeLayer(parcelHighlight);
+  parcelHighlight = L.geoJSON(geometry, {
+    style: { color: '#f97316', fillColor: '#f97316', fillOpacity: 0.15, weight: 3, dashArray: null }
+  }).addTo(map);
+  // Auto-remove after 30s
+  setTimeout(function() { if (parcelHighlight) map.removeLayer(parcelHighlight); }, 30000);
+}
+
+// Find which zone contains a point (ray-cast point-in-polygon)
+function findZoneAt(latlng) {
+  var found = null;
+  zoneLayer.eachLayer(function(layer) {
+    if (found) return;
+    if (layer.feature && layer.getBounds && layer.getBounds().contains(latlng)) {
+      // Rough bounds check passed, do detailed check
+      found = layer.feature.properties;
+    }
+  });
+  return found;
+}
+
+function buildCombinedPopup(zoneProps, parcelData, latlng) {
+  var h = '';
+  // Parcel section
+  if (parcelData) {
+    var pp = parcelData.properties || {};
+    var parcelNbr = pp.PARCEL_NBR || '?';
+    var block = pp.BLCK_CODE || '?';
+    var sheet = pp.SHEET || '?';
+    var plan = pp.PLAN_NBR || '?';
+    var areaM2 = pp['SHAPE.STArea()'];
+    var vilCode = pp.VIL_CODE || '?';
+
+    h += '<div style="min-width:290px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center">';
+    h += '<b style="font-size:15px;color:#f97316">Parcel ' + parcelNbr + '</b>';
+    h += '<span style="background:#f97316;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">Plot</span>';
+    h += '</div>';
+    h += '<table class="popup-table">';
+    h += '<tr><td class="k">Sheet / Plan:</td><td class="v">' + sheet + ' / ' + plan + '</td></tr>';
+    h += '<tr><td class="k">Block:</td><td class="v">' + block + '</td></tr>';
+    h += '<tr><td class="k">Municipality code:</td><td class="v">' + vilCode + '</td></tr>';
+    if (areaM2) h += '<tr><td class="k">Plot area:</td><td class="v"><b>' + Math.round(parseFloat(areaM2)).toLocaleString() + ' m&sup2;</b></td></tr>';
+    h += '</table>';
+
+    // Parking estimate for medical if area known
+    if (areaM2 && zoneProps && (zoneProps.medical_class === "by_right" || zoneProps.medical_class.indexOf("conditional") === 0)) {
+      var a = parseFloat(areaM2);
+      var cov = zoneProps.coverage || 0.5;
+      var bd = zoneProps.base_bd || 0.5;
+      var buildable = Math.min(a * cov, a * bd);
+      var parkingSpaces = Math.ceil(buildable / 27.5 * 1.3);
+      var parkingArea = parkingSpaces * 20;
+      h += '<div style="font-size:10px;color:#64748b;margin:4px 0;line-height:1.3">';
+      h += 'Est. buildable: ~' + Math.round(buildable).toLocaleString() + ' m&sup2; | ';
+      h += 'Parking: ~' + parkingSpaces + ' spaces (~' + parkingArea.toLocaleString() + ' m&sup2;)';
+      h += '</div>';
+    }
+
+    h += '<div style="height:1px;background:#334155;margin:8px 0"></div>';
+  } else {
+    h += '<div style="min-width:290px">';
+    h += '<div style="font-size:11px;color:#64748b;margin-bottom:6px">No parcel data at this point</div>';
+  }
+
+  // Zone section (reuse existing buildPopup logic inline)
+  if (zoneProps) {
+    h += buildPopup(zoneProps, latlng);
+  } else {
+    h += '<div style="color:#64748b;font-size:11px">Zone data unavailable</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+// Also handle clicks on empty map areas (no zone polygon) when cadastral is on
+map.on('click', function(e) {
+  var cadastralOn = document.getElementById('toggleCadastral').checked;
+  if (!cadastralOn) return;
+  // Check if click was already handled by a zone polygon (stopPropagation)
+  // This fires only if no zone polygon caught the click
+  var zoneProps = findZoneAt(e.latlng);
+  handleMapClick(e.latlng, zoneProps);
+});
 
 function getZoneStyle(props) {
   const medClass = props.medical_class || 'unknown';
