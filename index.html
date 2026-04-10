@@ -291,42 +291,55 @@ map.on('click', function(e) {
   var cadastralOn = document.getElementById('toggleCadastral').checked;
 
   if (!cadastralOn) {
+    // No cadastral — just show zone popup
     if (zoneProps) {
       L.popup({ maxWidth: 360 }).setLatLng(latlng).setContent(buildPopup(zoneProps, latlng)).openOn(map);
     }
     return;
   }
 
-  // Cadastral ON — fetch ALL parcels in this zone, color them
+  // Cadastral ON — load parcels in this zone silently, then show clicked parcel details
   if (zoneParcelLayer) map.removeLayer(zoneParcelLayer);
   if (parcelHighlight) map.removeLayer(parcelHighlight);
 
-  var popup = L.popup({ maxWidth: 380 }).setLatLng(latlng)
-    .setContent('<div style="padding:8px;color:#94a3b8">Loading parcels in zone...</div>').openOn(map);
-
-  // Get zone bbox for spatial query
   var bbox = zoneFeature ? getFeatureBbox(zoneFeature) : [latlng.lng-0.005,latlng.lat-0.005,latlng.lng+0.005,latlng.lat+0.005];
+
+  // Show loading indicator briefly
+  var loadingPopup = L.popup({ maxWidth: 280, closeButton: false }).setLatLng(latlng)
+    .setContent('<div style="padding:6px;color:#94a3b8;font-size:12px">Loading parcels...</div>').openOn(map);
 
   queryParcelsInBbox(bbox).then(function(parcels) {
     var minPlot = parseInt(document.getElementById('minPlot').value) || 0;
     var medClass = zoneProps ? (zoneProps.medical_class || '') : '';
     var isConditional = medClass.indexOf('conditional') === 0;
 
-    // Color each parcel
+    // Classify each parcel
     var features = [];
-    var okCount = 0, failCount = 0;
+    var clickedParcel = null;
+    var clickedDist = Infinity;
     parcels.forEach(function(p) {
       var area = p.properties['SHAPE.STArea()'] ? parseFloat(p.properties['SHAPE.STArea()']) : 0;
       var sizeOk = (minPlot === 0 || area >= minPlot);
       var roadAccess = checkParcelRoadAccess(p.geometry);
       var roadOk = roadAccess !== 'landlocked';
       var pass = sizeOk && (!isConditional || roadOk);
-
       p.properties._pass = pass;
       p.properties._roadAccess = roadAccess;
       p.properties._area = area;
+      p.properties._zoneProps = zoneProps;
       features.push(p);
-      if (pass) okCount++; else failCount++;
+
+      // Find the parcel closest to click point
+      if (p.geometry && p.geometry.coordinates) {
+        var ring = p.geometry.type === 'MultiPolygon' ? p.geometry.coordinates[0][0] : p.geometry.coordinates[0];
+        if (ring) {
+          var cx=0,cy=0;
+          for (var i=0;i<ring.length;i++){cx+=ring[i][0];cy+=ring[i][1];}
+          cx/=ring.length; cy/=ring.length;
+          var d = Math.abs(cx-latlng.lng)+Math.abs(cy-latlng.lat);
+          if (d < clickedDist) { clickedDist = d; clickedParcel = p; }
+        }
+      }
     });
 
     // Add colored parcel layer
@@ -335,35 +348,31 @@ map.on('click', function(e) {
       style: function(f) {
         var ok = f.properties._pass;
         var c = ok ? '#10b981' : '#ef4444';
-        return { color: c, fillColor: c, fillOpacity: ok ? 0.30 : 0.20, weight: ok ? 2 : 1 };
+        return { color: c, fillColor: c, fillOpacity: ok ? 0.30 : 0.15, weight: ok ? 2 : 1 };
       },
       onEachFeature: function(feature, layer) {
         layer.on('click', function(ev) {
           L.DomEvent.stopPropagation(ev);
           var pp = feature.properties;
-          var pr = pp._roadAccess;
-          // Show individual parcel popup
-          var singlePopup = L.popup({ maxWidth: 380 }).setLatLng(ev.latlng)
-            .setContent(buildCombinedPopup(zoneProps, feature, ev.latlng, pr)).openOn(map);
+          var zp = pp._zoneProps;
+          L.popup({ maxWidth: 380 }).setLatLng(ev.latlng)
+            .setContent(buildCombinedPopup(zp, feature, ev.latlng, pp._roadAccess)).openOn(map);
           if (parcelHighlight) map.removeLayer(parcelHighlight);
           highlightParcel(feature.geometry, pp._pass);
         });
       }
     }).addTo(map);
 
-    // Update main popup with summary
-    var zoneName = zoneProps ? (zoneProps.PLNZNT_NAME || '?') : '?';
-    var h = '<div style="min-width:260px">';
-    h += '<b style="font-size:14px">Zone: ' + zoneName + '</b> — ' + parcels.length + ' parcels loaded<br>';
-    h += '<span style="color:#10b981;font-weight:600">' + okCount + ' eligible</span>';
-    h += ' · <span style="color:#ef4444;font-weight:600">' + failCount + ' filtered out</span>';
-    if (minPlot > 0) h += '<br><span style="font-size:10px;color:#64748b">Min plot: ' + minPlot.toLocaleString() + ' m²</span>';
-    if (isConditional) h += '<br><span style="font-size:10px;color:#64748b">Road frontage required (§17.5.2/§17.5.4)</span>';
-    h += '<br><span style="font-size:10px;color:#475569">Click a parcel for details. Max 1,000 shown.</span>';
-    h += '</div>';
-    popup.setContent(h);
+    // Show the clicked parcel's details immediately
+    map.closePopup(loadingPopup);
+    if (clickedParcel) {
+      var cp = clickedParcel.properties;
+      L.popup({ maxWidth: 380 }).setLatLng(latlng)
+        .setContent(buildCombinedPopup(zoneProps, clickedParcel, latlng, cp._roadAccess)).openOn(map);
+      highlightParcel(clickedParcel.geometry, cp._pass);
+    }
   }).catch(function(err) {
-    popup.setContent('<div style="padding:8px;color:#fca5a5">Error loading parcels: ' + err.message + '</div>');
+    map.closePopup(loadingPopup);
   });
 });
 
