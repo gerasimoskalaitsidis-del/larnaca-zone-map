@@ -169,8 +169,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172
     <input type="range" id="zoneOpacity" min="0" max="100" value="100">
   </div>
   <div class="slider-row">
-    <label>Parcel/plot overlay opacity <b id="parcelOpVal">50%</b></label>
-    <input type="range" id="parcelOpacity" min="0" max="100" value="50">
+    <label>Parcel/plot overlay opacity <b id="parcelOpVal">100%</b></label>
+    <input type="range" id="parcelOpacity" min="0" max="100" value="100">
   </div>
 
   <div class="divider"></div>
@@ -248,7 +248,7 @@ const wmsZones = L.tileLayer.wms('https://eservices.dls.moi.gov.cy/inspire/servi
   layers: '0', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.4, crs: L.CRS.EPSG4326
 });
 const wmsCadastral = L.tileLayer.wms('https://eservices.dls.moi.gov.cy/inspire/services/INSPIRE/CP_CadastralParcels/MapServer/WMSServer', {
-  layers: '1', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.50, crs: L.CRS.EPSG4326
+  layers: '1', format: 'image/png', transparent: true, version: '1.3.0', opacity: 1.0, crs: L.CRS.EPSG4326
 });
 
 // ===== ZONE COLORS =====
