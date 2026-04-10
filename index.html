@@ -265,6 +265,10 @@ const zoneLayer = L.geoJSON(ZONE_DATA, {
   interactive: false  // clicks handled at map level
 }).addTo(map);
 
+// ===== PARCEL HIGHLIGHT PANE (above everything) =====
+map.createPane('parcelHighlight');
+map.getPane('parcelHighlight').style.zIndex = 650;
+
 // ===== PARCEL QUERY (DLS CadastralMap Layer 0) =====
 const PARCEL_QUERY_URL = 'https://eservices.dls.moi.gov.cy/arcgis/rest/services/National/CadastralMap_EN/MapServer/0/query';
 let parcelHighlight = null;
@@ -314,7 +318,8 @@ function highlightParcel(geometry, pass) {
   if (parcelHighlight) map.removeLayer(parcelHighlight);
   var c = pass ? '#10b981' : '#ef4444';
   parcelHighlight = L.geoJSON(geometry, {
-    style: { color: c, fillColor: c, fillOpacity: 0.20, weight: 3 }
+    pane: 'parcelHighlight',
+    style: { color: c, fillColor: c, fillOpacity: 0.35, weight: 4 }
   }).addTo(map);
   setTimeout(function() { if (parcelHighlight) map.removeLayer(parcelHighlight); }, 30000);
 }
